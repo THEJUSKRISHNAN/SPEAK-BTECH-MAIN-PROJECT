@@ -36,12 +36,17 @@ export default function CallPage() {
   const [remoteMicOn, setRemoteMicOn] = useState(true);
   const [remoteVideoOn, setRemoteVideoOn] = useState(true);
 
+  //captions
+  const [captions, setCaptions] = useState("");
+  const captionTimerRef = useRef(null);
+
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const peerConnectionRef = useRef(null);
   const localStreamRef = useRef(null);
   const otherUserRef = useRef(null);
   const isCleaningUpRef = useRef(false);
+  const mediaRecorderRef = useRef(null);
 
   const createPeerConnection = (targetUserId) => {
     const pc = new RTCPeerConnection(peerConnectionConfig);
@@ -70,6 +75,9 @@ export default function CallPage() {
   };
 
   useEffect(() => {
+
+    if (!user) return;
+
     let mounted = true;
     setIsMicOn(!user.isDeaf);       // Mic is ON for hearing, OFF for deaf
     navigator.mediaDevices.getUserMedia({ video: true, audio: !user.isDeaf })
@@ -86,7 +94,23 @@ export default function CallPage() {
         console.log('Media stream initialized');
       })
       .catch(err => {
-        console.error("Error accessing media devices.", err);
+        // This is an expected path for a deaf user
+        if (user.isDeaf && (err.name === "NotReadableError" || err.name === "NotFoundError" || err.name === "OverconstrainedError")) {
+          console.warn("Audio device not found. This is normal for a deaf user.");
+          // Try again with video only
+          navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+            .then(stream => {
+              setLocalStream(stream);
+              localStreamRef.current = stream;
+              if (localVideoRef.current) {
+                localVideoRef.current.srcObject = stream;
+              }
+            });
+        } else {
+          // error for a hearing user
+          console.error("Error accessing media devices.", err);
+          alert("Could not access your camera or microphone. Please check permissions.");
+        }
       });
 
     return () => {
@@ -109,16 +133,17 @@ export default function CallPage() {
         peerConnectionRef.current.close();
       }
     };
-  }, []);
+  }, [user]);
 
   const handleHangUp = useCallback((notifyPeer = true) => {
     if (isCleaningUpRef.current) {
       console.log('Already cleaning up, skip');
       return;
     }
-    
+
     isCleaningUpRef.current = true;
     console.log('=== HANGUP INITIATED ===');
+    stopRecording();
 
     if (localStreamRef.current) {
       const tracks = localStreamRef.current.getTracks();
@@ -163,9 +188,9 @@ export default function CallPage() {
     }
 
     dispatch(clearIncomingCall());
-    
+
     console.log('=== CLEANUP COMPLETE ===');
-    
+
     setTimeout(() => {
       navigate('/dashboard');
     }, 200);
@@ -190,7 +215,7 @@ export default function CallPage() {
       console.log('Call ended by peer');
       handleHangUp(false);
     };
-    
+
     const onCallRejected = () => {
       console.log("Call rejected by peer");
       alert("Call was rejected.");
@@ -200,12 +225,22 @@ export default function CallPage() {
     const onMicToggled = ({ isMicOn }) => setRemoteMicOn(isMicOn);
     const onVideoToggled = ({ isVideoOn }) => setRemoteVideoOn(isVideoOn);
 
+    // STT 
+    const onSttResult = ({ text }) => {
+      if (user?.isDeaf) {
+        setCaptions(text);
+        if (captionTimerRef.current) clearTimeout(captionTimerRef.current);
+        captionTimerRef.current = setTimeout(() => setCaptions(""), 4000);
+      }
+    };
+
     socket.on('call-accepted', onCallAccepted);
     socket.on('ice-candidate', onIceCandidate);
     socket.on('call-ended', onCallEnded);
     socket.on('call-rejected', onCallRejected);
     socket.on('mic-toggled', onMicToggled);
     socket.on('video-toggled', onVideoToggled);
+    socket.on('stt-result', onSttResult);
 
     return () => {
       socket.off('call-accepted', onCallAccepted);
@@ -214,8 +249,9 @@ export default function CallPage() {
       socket.off('call-rejected', onCallRejected);
       socket.off('mic-toggled', onMicToggled);
       socket.off('video-toggled', onVideoToggled);
+      socket.off('stt-result', onSttResult);
     };
-  }, [socket, handleHangUp]);
+  }, [socket, handleHangUp, user]);
 
   useEffect(() => {
     if (!localStream || !socket.connected || !user) {
@@ -255,6 +291,16 @@ export default function CallPage() {
           });
         });
     }
+
+    // Start STT recording for hearing user
+    if (callStatus === 'in-call' && !user.isDeaf) {
+      startRecording();
+    }
+
+    return () => {
+      stopRecording();
+    }
+
   }, [calleeId, localStream, socket, callStatus, incomingCallData, user, dispatch]);
 
   const toggleMic = useCallback(() => {
@@ -288,6 +334,74 @@ export default function CallPage() {
       }
     }
   }, [socket]);
+
+  // STT
+  const startRecording = () => {
+    if (user?.isDeaf) return;
+    if (!localStreamRef.current) return;
+
+    const audioTracks = localStreamRef.current.getAudioTracks();
+    if (audioTracks.length === 0) {
+      console.warn("No audio track available for STT");
+      return;
+    }
+
+    const audioStream = new MediaStream([audioTracks[0]]);
+    const mimeType = 'audio/webm;codecs=opus';
+    const recorder = new MediaRecorder(audioStream, { mimeType });
+
+    let chunks = [];
+
+    recorder.ondataavailable = (e) => {
+      if (e.data.size > 0) chunks.push(e.data);
+    };
+
+    recorder.onstop = async () => {
+      const blob = new Blob(chunks, { type: mimeType });
+      chunks = [];
+
+      const formData = new FormData();
+      formData.append('file', blob, 'chunk.webm');
+
+      try {
+        const res = await fetch('http://localhost:5000/api/transcribe', {
+          method: 'POST',
+          body: formData,
+        });
+        const data = await res.json();
+        console.log('Transcribed text:', data.text);
+
+        if (data.text && data.text.trim() !== "") {
+          socket.emit("stt-result", {
+            to: otherUserRef.current,
+            text: data.text,
+          });
+        }
+      } catch (err) {
+        console.error("Transcription failed:", err);
+      }
+
+      setTimeout(startRecording, 1000);
+    };
+
+    recorder.start();
+    setTimeout(() => recorder.stop(), 4000);
+  };
+
+  const stopRecording = () => {
+    try {
+      if (mediaRecorderRef.current) {
+        if (mediaRecorderRef.current.state !== "inactive") {
+          mediaRecorderRef.current.stop();
+          console.log('--- Audio recording for STT stopped ---');
+        }
+        mediaRecorderRef.current = null;
+      }
+    } catch (err) {
+      console.warn("Error stopping recording:", err);
+    }
+  };
+
 
   return (
     <div className="min-h-screen bg-black flex flex-col">
@@ -338,6 +452,12 @@ export default function CallPage() {
           {callStatus === 'calling' && (
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white text-2xl bg-black bg-opacity-50 p-4 rounded-md">
               Calling...
+            </div>
+          )}
+
+          {user && user.isDeaf && captions && (
+            <div className="absolute bottom-24 left-1/2 -translate-x-1/2 bg-black bg-opacity-75 text-white p-4 rounded-md max-w-lg text-center z-20">
+              <p className="text-xl">{captions}</p>
             </div>
           )}
 

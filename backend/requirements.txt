@@ -8,3 +8,7 @@ python-dotenv
 dnspython
 cloudinary
 eventlet
+openai-whisper
+torch 
+torchvision
+torchaudio

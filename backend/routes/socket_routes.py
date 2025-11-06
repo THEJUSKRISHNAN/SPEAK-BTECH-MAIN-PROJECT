@@ -167,3 +167,11 @@ def register_socket_events():
                 "from": sender_id,
                 "isVideoOn": data.get('isVideoOn')
             }, room=target_socket_id)
+
+    # STT
+    @socketio.on('stt-result')
+    def handle_stt_result(data):
+        target_user_id = data.get('to')
+        if target_user_id in online_users:
+            target_socket_id = online_users[target_user_id]['socket_id']
+            emit('stt-result', {'text': data.get('text')}, room=target_socket_id)
