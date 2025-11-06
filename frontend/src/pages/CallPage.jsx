@@ -71,8 +71,8 @@ export default function CallPage() {
 
   useEffect(() => {
     let mounted = true;
-
-    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+    setIsMicOn(!user.isDeaf);       // Mic is ON for hearing, OFF for deaf
+    navigator.mediaDevices.getUserMedia({ video: true, audio: !user.isDeaf })
       .then(stream => {
         if (!mounted) {
           stream.getTracks().forEach(track => track.stop());
@@ -260,6 +260,8 @@ export default function CallPage() {
   const toggleMic = useCallback(() => {
     if (!localStreamRef.current) return;
 
+    if (!user || user.isDeaf) return;
+
     const audioTrack = localStreamRef.current.getAudioTracks()[0];
     if (audioTrack) {
       audioTrack.enabled = !audioTrack.enabled;
@@ -346,7 +348,8 @@ export default function CallPage() {
           >
             <button
               onClick={toggleMic}
-              className={`p-4 rounded-full text-white ${isMicOn ? 'bg-gray-600 hover:bg-gray-700' : 'bg-red-600'}`}
+              disabled={user?.isDeaf}
+              className={`p-4 rounded-full text-white ${isMicOn ? 'bg-gray-600 hover:bg-gray-700' : 'bg-red-600'} ${user?.isDeaf ? 'bg-gray-700 opacity-50 cursor-not-allowed' : ''}`}
             >
               {isMicOn ? <IoMicSharp size={24} /> : <IoMicOffSharp size={24} />}
             </button>
