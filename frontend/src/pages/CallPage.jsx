@@ -341,24 +341,67 @@ export default function CallPage() {
     if (!localStreamRef.current) return;
 
     const audioTracks = localStreamRef.current.getAudioTracks();
-    if (audioTracks.length === 0) {
-      console.warn("No audio track available for STT");
-      return;
-    }
+    if (audioTracks.length === 0) return;
 
     const audioStream = new MediaStream([audioTracks[0]]);
     const mimeType = 'audio/webm;codecs=opus';
     const recorder = new MediaRecorder(audioStream, { mimeType });
-
+    mediaRecorderRef.current = recorder;
     let chunks = [];
+
+    let silenceStart = 0;
+    let isSilent = false;
+    let hasSpeech = false; // new flag to track if user actually spoke
+
+    // For silence detection
+    const audioCtx = new AudioContext();
+    const source = audioCtx.createMediaStreamSource(audioStream);
+    const analyser = audioCtx.createAnalyser();
+    source.connect(analyser);
+    const dataArray = new Uint8Array(analyser.fftSize);
+
+    const detectSilence = () => {
+      analyser.getByteFrequencyData(dataArray);
+      const volume = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
+
+      if (volume > 10) {
+        // user is speaking
+        hasSpeech = true;
+        isSilent = false;
+      } else if (volume < 5) {
+        // silence
+        if (!isSilent) {
+          silenceStart = Date.now();
+          isSilent = true;
+        } else if (hasSpeech && Date.now() - silenceStart > 1500) {
+          // stop only if we already detected speech
+          recorder.stop();
+          audioCtx.close();
+          return;
+        }
+      }
+
+      requestAnimationFrame(detectSilence);
+    };
+
+    detectSilence();
 
     recorder.ondataavailable = (e) => {
       if (e.data.size > 0) chunks.push(e.data);
     };
 
     recorder.onstop = async () => {
+      if (!hasSpeech) {
+        // User never spoke; skip backend call
+        console.log("Silence detected, skipping backend call.");
+        audioCtx.close();
+        setTimeout(startRecording, 1000);
+        return;
+      }
+
       const blob = new Blob(chunks, { type: mimeType });
       chunks = [];
+      hasSpeech = false; // reset flag for next session
 
       const formData = new FormData();
       formData.append('file', blob, 'chunk.webm');
@@ -369,23 +412,18 @@ export default function CallPage() {
           body: formData,
         });
         const data = await res.json();
-        console.log('Transcribed text:', data.text);
-
         if (data.text && data.text.trim() !== "") {
-          socket.emit("stt-result", {
-            to: otherUserRef.current,
-            text: data.text,
-          });
+          socket.emit("stt-result", { to: otherUserRef.current, text: data.text });
         }
       } catch (err) {
         console.error("Transcription failed:", err);
       }
 
+      // Restart after silence
       setTimeout(startRecording, 1000);
     };
 
     recorder.start();
-    setTimeout(() => recorder.stop(), 4000);
   };
 
   const stopRecording = () => {
