@@ -54,6 +54,10 @@ def create_app():
     from routes.api_routes import api_bp
     app.register_blueprint(api_bp, url_prefix='/api')
 
+    from routes.stt_routes import stt_bp
+    app.register_blueprint(stt_bp, url_prefix='/api/stt')
+
+
     from routes.socket_routes import register_socket_events
     register_socket_events()
 

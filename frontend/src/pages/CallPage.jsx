@@ -407,7 +407,7 @@ export default function CallPage() {
       formData.append('file', blob, 'chunk.webm');
 
       try {
-        const res = await fetch('http://localhost:5000/api/transcribe', {
+        const res = await fetch('http://localhost:5000/api/stt/transcribe', {
           method: 'POST',
           body: formData,
         });
