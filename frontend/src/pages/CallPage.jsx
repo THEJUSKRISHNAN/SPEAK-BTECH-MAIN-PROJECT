@@ -249,7 +249,7 @@ export default function CallPage() {
       // Hearing user -- Play the sound
       if (!user?.isDeaf) {
         try {
-          const audioSrc = `data:audio/mp3;base64,${audio}`;
+          const audioSrc = `data:audio/wav;base64,${audio}`;
           audioPlayerRef.current.src = audioSrc;
           
           audioPlayerRef.current.play().catch((err) => {
