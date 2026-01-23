@@ -35,3 +35,4 @@ htmlcov/
 
 # Models
 ai/99_model.pt
+ai/6_words.pt

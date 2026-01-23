@@ -29,7 +29,7 @@ class SignDetector:
         self.transform = None
         
         
-        self.model_path = os.path.join(ai_folder, '99_model.pt')
+        self.model_path = os.path.join(ai_folder, '6_words.pt')
 
         self.load_model()
 
@@ -40,7 +40,7 @@ class SignDetector:
         try:
             # 1. Initialize Model 
             # Update this number if your 99_model.pt has more classes!
-            self.model = DETR(num_classes=3) 
+            self.model = DETR(num_classes=6) 
             self.model.eval()
             
             # 2. Load Weights
@@ -53,7 +53,7 @@ class SignDetector:
             #     self.classes = get_classes()
             # except:
             #     self.classes = ['Class1', 'Class2', 'Class3'] 
-            self.classes = ['Hello', 'I Love You', 'Thank You']
+            self.classes = ["book", "goodmorning", "hello", "iloveyou", "please", "thankyou"]
 
             # 4. Setup Transforms (Standard for DETR)
             self.transform = A.Compose([
