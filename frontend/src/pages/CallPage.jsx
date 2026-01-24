@@ -245,17 +245,17 @@ export default function CallPage() {
     // TTS 
     const onPlayAudioMessage = ({ audio, text }) => {
       console.log(" Received TTS Audio:", text);
-      
+
       // Hearing user -- Play the sound
       if (!user?.isDeaf) {
         try {
           const audioSrc = `data:audio/wav;base64,${audio}`;
           audioPlayerRef.current.src = audioSrc;
-          
+
           audioPlayerRef.current.play().catch((err) => {
-             console.error("Autoplay blocked:", err);
+            console.error("Autoplay blocked:", err);
           });
-          
+
         } catch (error) {
           console.error("Error playing audio:", error);
         }
@@ -344,18 +344,18 @@ export default function CallPage() {
         const canvas = document.createElement('canvas');
         canvas.width = 320; // Low res is fine for speed
         canvas.height = 240;
-        
+
         const ctx = canvas.getContext('2d');
         // Draw the current video frame onto the canvas
         ctx.drawImage(localVideoRef.current, 0, 0, canvas.width, canvas.height);
-        
+
         // 2. Convert to Base64 (JPEG format, 50% quality to save bandwidth)
         const frameData = canvas.toDataURL('image/jpeg', 0.5);
 
         // 3. Send to Backend
-        socket.emit('process-frame', { 
+        socket.emit('process-frame', {
           image: frameData,
-          to: otherUserRef.current 
+          to: otherUserRef.current
         });
       }
     }, 500); // Send 2 frames per second
@@ -364,7 +364,7 @@ export default function CallPage() {
     const onSignPrediction = ({ label }) => {
       console.log("🖐 Sign Detected:", label);
       setSignLabel(label);
-      
+
       // Clear the label after 2 seconds so it doesn't stay forever
       setTimeout(() => setSignLabel(""), 2000);
     };
@@ -375,7 +375,7 @@ export default function CallPage() {
       clearInterval(interval);
       socket.off('sign-prediction', onSignPrediction);
     };
-  }, [user, socket, localStream]); 
+  }, [user, socket, localStream]);
 
   const toggleMic = useCallback(() => {
     if (!localStreamRef.current) return;
@@ -481,7 +481,7 @@ export default function CallPage() {
       formData.append('file', blob, 'chunk.webm');
 
       try {
-        const res = await fetch('http://localhost:5000/api/stt/transcribe', {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/stt/transcribe`, {
           method: 'POST',
           body: formData,
         });
@@ -580,29 +580,29 @@ export default function CallPage() {
 
           {/* TTS INPUT BAR (ONLY FOR DEAF USER) */}
           {user?.isDeaf && (
-             <div className="absolute bottom-24 left-0 w-full flex justify-center  px-4">
-               <form 
-                 onSubmit={handleSendText}
-                 className="flex w-full max-w-lg items-center gap-2 bg-gray-900/90 backdrop-blur-md p-2 rounded-full border border-gray-600 shadow-2xl"
-               >
-                 <input
-                   type="text"
-                   className="flex-grow bg-transparent text-white px-4 py-2 outline-none placeholder-gray-400 font-medium"
-                   placeholder="Type to speak..."
-                   value={textMessage}
-                   onChange={(e) => setTextMessage(e.target.value)}
-                   maxLength={500}
-                 />
-                 <button 
-                   type="submit"
-                   disabled={!textMessage.trim()}
-                   className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:text-gray-400 text-white rounded-full p-3 transition-colors flex items-center justify-center"
-                 >
-                   <IoSend size={20} className={!textMessage.trim() ? "translate-x-0" : "translate-x-0.5"} />
-                 </button>
-               </form>
-             </div>
-           )}
+            <div className="absolute bottom-24 left-0 w-full flex justify-center  px-4">
+              <form
+                onSubmit={handleSendText}
+                className="flex w-full max-w-lg items-center gap-2 bg-gray-900/90 backdrop-blur-md p-2 rounded-full border border-gray-600 shadow-2xl"
+              >
+                <input
+                  type="text"
+                  className="flex-grow bg-transparent text-white px-4 py-2 outline-none placeholder-gray-400 font-medium"
+                  placeholder="Type to speak..."
+                  value={textMessage}
+                  onChange={(e) => setTextMessage(e.target.value)}
+                  maxLength={500}
+                />
+                <button
+                  type="submit"
+                  disabled={!textMessage.trim()}
+                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:text-gray-400 text-white rounded-full p-3 transition-colors flex items-center justify-center"
+                >
+                  <IoSend size={20} className={!textMessage.trim() ? "translate-x-0" : "translate-x-0.5"} />
+                </button>
+              </form>
+            </div>
+          )}
 
           {user && user.isDeaf && captions && (
             <div className="absolute bottom-24 left-1/2 -translate-x-1/2 bg-black bg-opacity-75 text-white p-4 rounded-md max-w-lg text-center z-20">

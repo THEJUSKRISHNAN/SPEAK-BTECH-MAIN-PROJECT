@@ -4,6 +4,7 @@ from config import Config
 from extensions import mongo, bcrypt, socketio
 import pymongo 
 import sys 
+import os 
 import cloudinary
 
 def create_app():
@@ -36,6 +37,9 @@ def create_app():
         "http://localhost:3000",
         "http://localhost:5173",
     ]
+    
+    if os.environ.get('FRONTEND_URL'):
+        allowed_origins.append(os.environ.get('FRONTEND_URL'))
 
     mongo.init_app(app)
     bcrypt.init_app(app)

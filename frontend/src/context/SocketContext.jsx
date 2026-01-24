@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import io from 'socket.io-client';
 
-const socket = io('http://127.0.0.1:5000', {
+const socket = io(import.meta.env.VITE_API_URL, {
   autoConnect: false,
   transports: ['websocket'],
 });

@@ -32,7 +32,7 @@ export const register = createAsyncThunk(
   async (userData, thunkAPI) => {
     try {
       const response = await axios.post(
-        "http://127.0.0.1:5000/api/auth/register",
+        `${import.meta.env.VITE_API_URL}/api/auth/register`,
         userData
       );
       toast.success("Account created successfully");
@@ -56,7 +56,7 @@ export const login = createAsyncThunk(
   async (userData, thunkAPI) => {
     try {
       const response = await axios.post(
-        "http://127.0.0.1:5000/api/auth/login",
+        `${import.meta.env.VITE_API_URL}/api/auth/login`,
         userData
       );
 
@@ -92,7 +92,7 @@ export const updateProfile = createAsyncThunk(
       };
       
       const response = await axios.put(
-        'http://127.0.0.1:5000/api/profile/update',
+        `${import.meta.env.VITE_API_URL}/api/profile/update`,
         profileData,
         config
       );
