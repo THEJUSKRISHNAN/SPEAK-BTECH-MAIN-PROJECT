@@ -7,6 +7,9 @@ from routes.tts import get_tts_audio
 from routes.sign_detector import detector
 
 online_users = {}
+# Prevent repeated TTS for same sign
+last_sign_spoken = {}
+SIGN_COOLDOWN_SECONDS = 10
 
 def register_socket_events():
     
@@ -38,6 +41,10 @@ def register_socket_events():
             print(f"User {user_id_to_remove} disconnected.")
             
             emit('update_online_users', list(online_users.values()), broadcast=True)
+
+        keys_to_remove = [k for k in last_sign_spoken if k[0] == request.sid]
+        for k in keys_to_remove:
+            del last_sign_spoken[k]
 
         print(f"Client disconnected: {request.sid}")
     
@@ -220,17 +227,44 @@ def register_socket_events():
                 
                 # A. Notify the Signer (Deaf User) - Visual Confirmation
                 emit('sign-prediction', {'label': prediction}, room=request.sid)
+
+                cache_key = (request.sid, target_user_id)
+                now = datetime.datetime.utcnow()
+                last_entry = last_sign_spoken.get(cache_key)
+
+                cooldown_expired = False
+                if last_entry:
+                     time_diff = (now - last_entry["time"]).total_seconds()
+                     if time_diff > SIGN_COOLDOWN_SECONDS:
+                         cooldown_expired = True
+
+                should_speak = False
+                if last_entry is None:
+                    should_speak = True
+                elif last_entry["label"] != prediction:
+                    should_speak = True
+                elif cooldown_expired:
+                    should_speak = True
                 
                 # B. Notify the Hearing User - AUDIO (TTS)
-                if target_user_id in online_users:
-                    target_socket = online_users[target_user_id]['socket_id']
-                    
-                    # Generate Audio for the predicted sign
-                    audio_base64 = get_tts_audio(prediction)
-                    
-                    if audio_base64:
-                        # Send the audio to be played automatically
-                        emit('play-audio-message', {
-                            'audio': audio_base64,
-                            'text': f"(Sign) {prediction}" 
-                        }, room=target_socket)
+                if should_speak:
+                    if target_user_id in online_users:
+                        target_socket = online_users[target_user_id]['socket_id']
+                        
+                        # Generate Audio for the predicted sign
+                        audio_base64 = get_tts_audio(prediction)
+                        
+                        if audio_base64:
+                            # Send the audio to be played automatically
+                            emit('play-audio-message', {
+                                'audio': audio_base64,
+                                'text': f"(Sign) {prediction}" 
+                            }, room=target_socket)
+
+                        # Update cache only if we spoke
+                        last_sign_spoken[cache_key] = {
+                            "label": prediction,
+                            "time": now
+                        }
+                else:
+                    print(f"Sign detected again: {prediction}")
