@@ -372,7 +372,8 @@ export default function CallPage() {
     if (!user?.isDeaf || !localStreamRef.current) return;
 
     const interval = setInterval(() => {
-      if (localVideoRef.current && socket.connected) {
+      // Check if video is actually enabled before sending frames
+      if (localVideoRef.current && socket.connected && isVideoOn) {
         // 1. Create a hidden canvas to grab the frame
         const canvas = document.createElement('canvas');
         canvas.width = 320; // Low res is fine for speed
