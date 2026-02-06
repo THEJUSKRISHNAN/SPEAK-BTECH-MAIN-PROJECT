@@ -53,7 +53,7 @@ class SignDetector:
             #     self.classes = get_classes()
             # except:
             #     self.classes = ['Class1', 'Class2', 'Class3'] 
-            self.classes = ["book","break","congratulations","goodmorning","hello","home","iloveyou","mistake","please","quiet","thankyou"]
+            self.classes = ["break","book","congratulations","goodmorning","hello","home","iloveyou","mistake","please","quiet","thankyou"]
 
             # 4. Setup Transforms (Standard for DETR)
             self.transform = A.Compose([
