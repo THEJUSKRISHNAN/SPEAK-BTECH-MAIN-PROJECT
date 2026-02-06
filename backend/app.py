@@ -9,7 +9,7 @@ import cloudinary
 
 def create_app():
     """Application factory function"""
-    app = Flask(__name__)
+    app = Flask(__name__, static_folder="../frontend/dist", static_url_path="/")
     app.config.from_object(Config)
 
     
@@ -69,8 +69,19 @@ def create_app():
     def test_route():
         return jsonify({"message": "Flask backend is running!"})
 
+    # Serve React Frontend
+    @app.route('/')
+    def index():
+        return app.send_static_file('index.html')
+
+    @app.errorhandler(404)
+    def not_found(e):
+        if request.path.startswith('/api'):
+            return jsonify({"error": "Not found"}), 404
+        return app.send_static_file('index.html')
+
     return app
 
 if __name__ == '__main__':
     app = create_app()
-    socketio.run(app, debug=True, port=5000)
+    socketio.run(app, debug=True, port=5001)
