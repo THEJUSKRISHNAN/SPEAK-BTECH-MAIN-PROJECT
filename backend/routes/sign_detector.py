@@ -29,7 +29,7 @@ class SignDetector:
         self.transform = None
         
         
-        self.model_path = os.path.join(ai_folder, '11_words.pt')
+        self.model_path = os.path.join(ai_folder, '29_model.pt')
 
         self.load_model()
 
