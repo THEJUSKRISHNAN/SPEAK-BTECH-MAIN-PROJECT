@@ -44,7 +44,7 @@ SPEAK is a state-of-the-art, full-stack real-time communication platform designe
 
 | Document | Link |
 |----------|------|
-| Project Report | [View Report](./docs/SPEAK_Report.pdf) |
+| Project Report | [View Report](./docs/SPEAK_REPORT.pdf) |
 | Presentation PPT | [View PPT](./docs/SPEAK_PPT.pptx) |
 | IJERA Paper | [View Paper](./docs/SPEAK_IJERA.pdf) |
 | Demo Video | [Watch Video](https://drive.google.com/file/d/1fHz0VTekK8UJVcT6WzvTTT6rznFkvgnQ/view?usp=drive_link) |
